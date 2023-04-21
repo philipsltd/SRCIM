@@ -7,7 +7,13 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import Libraries.ITransport;
+import jade.domain.FIPAAgentManagement.FailureException;
+import jade.domain.FIPAAgentManagement.NotUnderstoodException;
+import jade.domain.FIPAAgentManagement.RefuseException;
 import jade.domain.FIPAException;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
+import jade.proto.AchieveREResponder;
 
 /**
  *
@@ -44,11 +50,37 @@ public class TransportAgent extends Agent {
 
         // TO DO: Register in DF
         try {
-            DFInteraction.RegisterInDF(this, id, "TransportAgent");
+            DFInteraction.RegisterInDF(this, associatedSkills, "TransportAgent");
         } catch (FIPAException e) {
             throw new RuntimeException(e);
         }
+
         // TO DO: Add responder behaviour/s
+        this.addBehaviour(new responderAgent(this, MessageTemplate.MatchPerformative(ACLMessage.REQUEST)));
+    }
+
+    private class responderAgent extends AchieveREResponder {
+
+        public responderAgent(Agent a, MessageTemplate mt){
+            super(a, mt);
+        }
+
+        @Override
+        protected ACLMessage handleRequest(ACLMessage request) throws NotUnderstoodException, RefuseException {
+            System.out.println(myAgent.getLocalName() + ": Processing REQUEST message");
+            ACLMessage msg = request.createReply();
+            msg.setPerformative(ACLMessage.AGREE);
+            return msg;
+        }
+
+        @Override
+        protected ACLMessage prepareResultNotification(ACLMessage request, ACLMessage response) throws FailureException {
+            System.out.println(myAgent.getLocalName() + ": Preparing result of REQUEST");
+            block(5000);
+            ACLMessage msg = request.createReply();
+            msg.setPerformative(ACLMessage.INFORM);
+            return msg;
+        }
     }
 
     @Override
@@ -56,3 +88,5 @@ public class TransportAgent extends Agent {
         super.takeDown();
     }
 }
+
+

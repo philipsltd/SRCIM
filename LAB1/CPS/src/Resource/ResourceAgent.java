@@ -6,9 +6,16 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import Libraries.IResource;
+import jade.domain.FIPAAgentManagement.FailureException;
+import jade.domain.FIPAAgentManagement.NotUnderstoodException;
+import jade.domain.FIPAAgentManagement.RefuseException;
 import jade.domain.FIPAException;
-
-import static Utilities.DFInteraction.*;
+import jade.core.Agent;
+import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
+import jade.proto.AchieveREInitiator;
+import jade.proto.AchieveREResponder;
+import jade.proto.ContractNetResponder;
 
 /**
  *
@@ -24,6 +31,7 @@ public class ResourceAgent extends Agent {
 
     @Override
     protected void setup() {
+
         Object[] args = this.getArguments();
         this.id = (String) args[0];
         this.description = (String) args[1];
@@ -52,14 +60,65 @@ public class ResourceAgent extends Agent {
             throw new RuntimeException(e);
         }
 
+        this.addBehaviour(new responderREAgent(this, MessageTemplate.MatchPerformative(ACLMessage.REQUEST)));
+        this.addBehaviour(new responderCFPAgent(this, MessageTemplate.MatchPerformative(ACLMessage.CFP)));
+    }
 
         // TO DO: Add responder behaviour/s
+    private class responderREAgent extends AchieveREResponder {         // aqui vou ter de ter os dois tipos de responders: ao CFP e ao Request
 
+        public responderREAgent(Agent a, MessageTemplate mt){
+                super(a, mt);
+            }
 
+        @Override
+        protected ACLMessage handleRequest(ACLMessage request) throws NotUnderstoodException, RefuseException {
+            System.out.println(myAgent.getLocalName() + ": Processing REQUEST message");
+            ACLMessage msg = request.createReply();
+            msg.setPerformative(ACLMessage.AGREE);
+            return msg;
+        }
+
+        @Override
+        protected ACLMessage prepareResultNotification(ACLMessage request, ACLMessage response) throws FailureException {
+            System.out.println(myAgent.getLocalName() + ": Preparing result of REQUEST");
+            block(5000);
+            ACLMessage msg = request.createReply();
+            msg.setPerformative(ACLMessage.INFORM);
+            return msg;
+        }
+    }
+
+    private class responderCFPAgent extends ContractNetResponder{
+
+        public responderCFPAgent(Agent a, MessageTemplate mt){
+            super(a, mt);
+        }
+
+        @Override
+        protected ACLMessage handleCfp(ACLMessage cfp) throws RefuseException, FailureException, NotUnderstoodException {
+            System.out.println(myAgent.getLocalName() + ": Processing CFP message");
+            ACLMessage msg = cfp.createReply();
+            msg.setPerformative(ACLMessage.PROPOSE);
+            msg.setContent("My Proposal value");
+            return msg;
+        }
+
+        @Override
+        protected ACLMessage handleAcceptProposal(ACLMessage cfp, ACLMessage propose, ACLMessage accept) throws FailureException {
+            System.out.println(myAgent.getLocalName() + ": Preparing result of CFP");
+            block(5000);
+            ACLMessage msg = cfp.createReply();
+            msg.setPerformative(ACLMessage.INFORM);
+            return msg;
+        }
     }
 
     @Override
     protected void takeDown() {
-        super.takeDown(); 
+        super.takeDown();
     }
 }
+
+
+
