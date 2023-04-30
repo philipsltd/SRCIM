@@ -55,7 +55,7 @@ public class ResourceAgent extends Agent {
 
         //TO DO: Register in DF with the corresponding skills as services
         try {
-            DFInteraction.RegisterInDF(this, id, "ResourceAgent");
+            DFInteraction.RegisterInDF(this, associatedSkills, "ResourceAgent");
         } catch (FIPAException e) {
             throw new RuntimeException(e);
         }

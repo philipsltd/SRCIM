@@ -1,9 +1,12 @@
 package Product;
 
+import Utilities.DFInteraction;
 import jade.core.Agent;
 import jade.core.behaviours.SequentialBehaviour;
 import jade.core.behaviours.SimpleBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAException;
 import jade.domain.df;
 import jade.core.AID;
 import jade.core.Agent;
@@ -22,6 +25,9 @@ import java.util.Vector;
 public class ProductAgent extends Agent {    
     
     String id;
+    String location;
+    String destination;
+    Boolean needTransportation;
     ArrayList<String> executionPlan = new ArrayList<>();
     // TO DO: Add remaining attributes required for your implementation
     
@@ -31,9 +37,12 @@ public class ProductAgent extends Agent {
     
     @Override
     protected void setup() {
+
         Object[] args = this.getArguments();
         this.id = (String) args[0];
         this.executionPlan = this.getExecutionList((String) args[1]);
+        this.location = "Source";
+
         System.out.println("Product launched: " + this.id + " Requires: " + executionPlan);
 
         // TO DO: Add necessary behaviour/s for the product to control the flow
@@ -45,59 +54,105 @@ public class ProductAgent extends Agent {
         }*/
 
 
-        // setup initiator for CFP
-        ACLMessage msgCFP = new ACLMessage(ACLMessage.CFP);
+        // setup initiator for REQUEST
+        //ACLMessage msgCFP = new ACLMessage(ACLMessage.CFP);
         /*msgCFP.setContent("Request skill agents");
         msgCFP.setOntology("skill-ontology");
         for(String skill: executionPlan){
             msgCFP.addReceiver(new AID(skill, AID.ISLOCALNAME));
         }
         addBehaviour((new initiatorCFPAgent(this, msgCFP)));*/
-        msgCFP.addReceiver(new AID("responder", false));
+        //msgCFP.addReceiver(new AID("responder", false));
+       // this.addBehaviour(new initiatorCFPAgent(this, msgCFP));
+
+
+        // setup initiator for CFP
+
+        ACLMessage msgCFP = new ACLMessage(ACLMessage.CFP);
+        String nextSkill = executionPlan.get(0);
+        DFAgentDescription[] dfAgentDescriptions;
+        try {
+            dfAgentDescriptions = DFInteraction.SearchInDFByName(nextSkill, this);
+        } catch (FIPAException e) {
+            throw new RuntimeException(e);
+        }
+
+        for(int i = 0; i < dfAgentDescriptions.length; i++){
+            msgCFP.addReceiver(dfAgentDescriptions[i].getName());
+        }
         this.addBehaviour(new initiatorCFPAgent(this, msgCFP));
 
 
         // setup initiator for REQUEST
-        ACLMessage msgRE = new ACLMessage(ACLMessage.REQUEST);
-        /*msgRE.setContent("Star production");
-        msgRE.setOntology("production-ontology");
-        for(AID skillAgent:skillAgents){
-            msgRE.addReceiver(skillAgent);
-        }
-        addBehaviour(new initiatorREAgent(this, msgRE));*/
 
-        msgRE.addReceiver(new AID("responder", false));
-        this.addBehaviour(new initiatorCFPAgent(this, msgRE));
+        ACLMessage msgRE = new ACLMessage(ACLMessage.REQUEST);
+        //msgRE.addReceiver();
+        this.addBehaviour(new initiatorREAgent(this, msgRE));
 
 
         // setup sequential behaviour
-        SequentialBehaviour sb = new SequentialBehaviour();
+        //SequentialBehaviour sb = new SequentialBehaviour();
         /*sb.addSubBehaviour(productionBehaviour);
         sb.addSubBehaviour(new OneShotBehaviour() {
             public void action(){
                 System.out.println("Production Complete!");
             }
         });*/
-        
-        
+
+
         //sb.addSubBehaviour(new RequestSkillBehaviour(this, "CFP Skill"));
         //sb.addSubBehaviour(new RequestTransportBehaviour(this, "REQUEST Transport"));
         //sb.addSubBehaviour(new ExecutePlanBehaviour(this, "REQUEST Skill"));
-        this.addBehaviour(sb);
+        //this.addBehaviour(sb);
     }
 
     private class initiatorCFPAgent extends ContractNetInitiator {
+
         public initiatorCFPAgent(Agent a, ACLMessage msg){
             super(a, msg);
         }
 
         @Override
         protected void handleAllResponses(Vector responses, Vector acceptances) {
+
+            ACLMessage auxMsg;
+            ACLMessage reply;
+            String auxDestination;
+            Boolean chosen = false;
+            int numberResponses = responses.size();
+
             System.out.println(myAgent.getLocalName() + ": All PROPOSALS received");
-            ACLMessage auxMsg = (ACLMessage) responses.get(0);
-            ACLMessage reply = auxMsg.createReply();
-            reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-            acceptances.add(reply);
+
+            responses.removeIf(e -> ((ACLMessage)e).getPerformative()!=ACLMessage.PROPOSE);
+
+            for(int i = 0; i < numberResponses; i++){
+                auxMsg = (ACLMessage)responses.get(i);
+                reply = auxMsg.createReply();
+                auxDestination = auxMsg.getContent();
+
+                if (location.compareTo(auxDestination) == 0){
+                    needTransportation = false;
+                    chosen = true;
+                    destination = auxDestination;
+                    reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                    acceptances.add(reply);
+                }
+                if(!chosen){
+                    reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
+                    acceptances.add(reply);
+                }
+            }
+
+            if (!chosen){
+                needTransportation = true;
+                auxMsg = (ACLMessage) responses.get(0);
+                reply = auxMsg.createReply();
+                destination = auxMsg.getContent();
+                acceptances.remove(0);
+                reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                acceptances.add(reply);
+            }
+            skipNextResponses();
         }
 
         @Override
