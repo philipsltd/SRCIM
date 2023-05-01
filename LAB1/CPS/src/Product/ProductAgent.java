@@ -4,6 +4,7 @@ import Utilities.DFInteraction;
 import jade.core.Agent;
 import jade.core.behaviours.SequentialBehaviour;
 import jade.core.behaviours.SimpleBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAException;
@@ -27,7 +28,12 @@ public class ProductAgent extends Agent {
     String id;
     String location;
     String destination;
-    Boolean needTransportation;
+    String productID;
+    AID agentToExec;
+    String nextSkill;
+    Boolean needTransportation = false;
+    Boolean actionComplete = false;
+    Integer step = 0;
     ArrayList<String> executionPlan = new ArrayList<>();
     // TO DO: Add remaining attributes required for your implementation
     
@@ -55,6 +61,7 @@ public class ProductAgent extends Agent {
 
 
         // setup initiator for REQUEST
+
         //ACLMessage msgCFP = new ACLMessage(ACLMessage.CFP);
         /*msgCFP.setContent("Request skill agents");
         msgCFP.setOntology("skill-ontology");
@@ -69,7 +76,7 @@ public class ProductAgent extends Agent {
         // setup initiator for CFP
 
         ACLMessage msgCFP = new ACLMessage(ACLMessage.CFP);
-        String nextSkill = executionPlan.get(0);
+        nextSkill = executionPlan.get(step);
         DFAgentDescription[] dfAgentDescriptions;
         try {
             dfAgentDescriptions = DFInteraction.SearchInDFByName(nextSkill, this);
@@ -83,15 +90,19 @@ public class ProductAgent extends Agent {
         this.addBehaviour(new initiatorCFPAgent(this, msgCFP));
 
 
-        // setup initiator for REQUEST
-
-        ACLMessage msgRE = new ACLMessage(ACLMessage.REQUEST);
-        //msgRE.addReceiver();
-        this.addBehaviour(new initiatorREAgent(this, msgRE));
-
+        // setup initiator for REQUEST transportation      DEIXAR POR AGORA PARA TESTAR MAIS TARDE O SEQUENTIAL SE HOUVER TEMPO
+        /*ACLMessage msgRE = new ACLMessage(ACLMessage.REQUEST);
+        String moveSkill = "sk_move";
+        DFAgentDescription[] dfAgentDescriptions;
+        try {
+            dfAgentDescriptions = DFInteraction.SearchInDFByName(nextSkill, this);
+        } catch (FIPAException e) {
+            throw new RuntimeException(e);
+        }
+        this.addBehaviour(new initiatorREAgent(this, msgRE));*/
 
         // setup sequential behaviour
-        //SequentialBehaviour sb = new SequentialBehaviour();
+        // SequentialBehaviour sb = new SequentialBehaviour();
         /*sb.addSubBehaviour(productionBehaviour);
         sb.addSubBehaviour(new OneShotBehaviour() {
             public void action(){
@@ -125,7 +136,9 @@ public class ProductAgent extends Agent {
 
             responses.removeIf(e -> ((ACLMessage)e).getPerformative()!=ACLMessage.PROPOSE);
 
-            for(int i = 0; i < numberResponses; i++){
+            System.out.println(myAgent.getLocalName() + ": All PROPOSALS cleared");
+
+            for(int i = 1; i < numberResponses; i++){
                 auxMsg = (ACLMessage)responses.get(i);
                 reply = auxMsg.createReply();
                 auxDestination = auxMsg.getContent();
@@ -134,6 +147,7 @@ public class ProductAgent extends Agent {
                     needTransportation = false;
                     chosen = true;
                     destination = auxDestination;
+                    agentToExec = auxMsg.getSender();
                     reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                     acceptances.add(reply);
                 }
@@ -143,26 +157,73 @@ public class ProductAgent extends Agent {
                 }
             }
 
+            System.out.println(myAgent.getLocalName() + ": All PROPOSALS rejected");
+
             if (!chosen){
                 needTransportation = true;
                 auxMsg = (ACLMessage) responses.get(0);
                 reply = auxMsg.createReply();
                 destination = auxMsg.getContent();
-                acceptances.remove(0);
+                agentToExec = auxMsg.getSender();
                 reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                 acceptances.add(reply);
             }
+
+            System.out.println(myAgent.getLocalName() + ": 1 PROPOSAL accepted");
+
             skipNextResponses();
         }
 
         @Override
         protected void handleInform(ACLMessage inform){
             System.out.println(myAgent.getLocalName() + ": INFORM message received");
+            actionComplete = true;
+            destination = inform.getContent();
+            productID = myAgent.getLocalName();
+
+            ACLMessage msgRETransport = new ACLMessage(ACLMessage.REQUEST);
+            String moveSkill = "sk_move";
+            DFAgentDescription[] dfAgentDescriptions;
+
+            try {
+                dfAgentDescriptions = DFInteraction.SearchInDFByName(moveSkill, myAgent);     // procurar entre todos os agentes qual faz o transporte
+            } catch (FIPAException e) {
+                throw new RuntimeException(e);
+            }
+
+            msgRETransport.addReceiver(dfAgentDescriptions[0].getName());            // como apenas existe um agv, executar o movimento através dele
+            msgRETransport.setContent(location + "," + destination + "," + productID);
+            myAgent.addBehaviour(new initiatorREAgentTransport(myAgent, msgRETransport));
         }
     }
 
-    private class initiatorREAgent extends AchieveREInitiator{
-        public initiatorREAgent (Agent a, ACLMessage msg){
+    // REQUEST for Transport Agent
+    public class initiatorREAgentTransport extends AchieveREInitiator{
+        public initiatorREAgentTransport (Agent a, ACLMessage msg){
+            super(a, msg);
+        }
+
+        @Override
+        protected void handleAgree(ACLMessage agree) {
+            System.out.println(myAgent.getLocalName() + ": AGREE message received");
+        }
+
+        @Override
+        protected void handleInform(ACLMessage inform){   // acabar isto com jeito
+            System.out.println(myAgent.getLocalName() + ": INFORM message received");
+            actionComplete = true;
+
+            ACLMessage msgREExecute = new ACLMessage(ACLMessage.REQUEST);
+
+            msgREExecute.setContent(nextSkill);
+            msgREExecute.addReceiver(agentToExec);
+            myAgent.addBehaviour(new initiatorREAgentResource(myAgent, msgREExecute));
+        }
+    }
+
+    // REQUEST for Resource Agent
+    public class initiatorREAgentResource extends AchieveREInitiator{
+        public initiatorREAgentResource (Agent a, ACLMessage msg){
             super(a, msg);
         }
 
@@ -174,52 +235,28 @@ public class ProductAgent extends Agent {
         @Override
         protected void handleInform(ACLMessage inform){
             System.out.println(myAgent.getLocalName() + ": INFORM message received");
-        }
-    }
+            //System.out.println(executionPlan.size());
+            step++;
+            if (step < executionPlan.size()) {
 
-    /*private class simpleBeh extends SimpleBehaviour {
+                ACLMessage newCFPMsg = new ACLMessage(ACLMessage.CFP);
+                System.out.println(step);
+                System.out.println(executionPlan.size());
+                nextSkill = executionPlan.get(step);
+                DFAgentDescription[] dfAgentDescriptions;
+                try {
+                    dfAgentDescriptions = DFInteraction.SearchInDFByName(nextSkill, myAgent);
+                } catch (FIPAException e) {
+                    throw new RuntimeException(e);
+                }
 
-        private boolean finished = false;
-        int step = 0;
-        String printOut;
+                for (int i = 0; i < dfAgentDescriptions.length; i++) {
+                    newCFPMsg.addReceiver(dfAgentDescriptions[i].getName());
+                }
 
-        public simpleBeh(Agent a, String prtOut) {
-            super(a);
-            this.printOut = prtOut;
-        }
-
-        @Override
-        public void action() {
-            System.out.println("SimpleBehaviour: SubBehaviour:" + printOut + " - step: " + ++step);
-        }
-
-        @Override
-        public boolean done() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
-    }*/
-
-    private class CFPBehaviourSkill extends SimpleBehaviour {
-
-        private boolean finished = false;
-        int step = 0;
-        String printOut;
-
-        public CFPBehaviourSkill(Agent a, String prtOut) {
-            super(a);
-            this.printOut = prtOut;
-        }
-
-        @Override
-        public void action() {
-            //System.out.println("SimpleBehaviour: SubBehaviour:" + printOut + " - step: " + ++step);
-        }
-
-        @Override
-        public boolean done() {
-            //throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-            finished = true;
-            return finished;
+                myAgent.addBehaviour(new initiatorCFPAgent(myAgent, newCFPMsg));  //ADAPTAR PARA O PRÓXIMO SKILL A EXECUTAR
+            }else
+                System.out.println("Plan Achieved");
         }
     }
 

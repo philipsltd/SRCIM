@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import Libraries.IResource;
+import jade.core.behaviours.WakerBehaviour;
 import jade.domain.FIPAAgentManagement.FailureException;
 import jade.domain.FIPAAgentManagement.NotUnderstoodException;
 import jade.domain.FIPAAgentManagement.RefuseException;
@@ -28,6 +29,7 @@ public class ResourceAgent extends Agent {
     String description;
     String[] associatedSkills;
     String location;
+    Boolean occupied = false;
 
     @Override
     protected void setup() {
@@ -64,6 +66,19 @@ public class ResourceAgent extends Agent {
         this.addBehaviour(new responderCFPAgent(this, MessageTemplate.MatchPerformative(ACLMessage.CFP)));
     }
 
+    private class resourceAgentWaker extends WakerBehaviour {
+
+        public resourceAgentWaker(Agent a, long timeout) {
+            super(a, timeout);
+        }
+
+        @Override
+        protected void onWake() {
+            occupied = false;
+        }
+    }
+
+
         // TO DO: Add responder behaviour/s
     private class responderREAgent extends AchieveREResponder {         // aqui vou ter de ter os dois tipos de responders: ao CFP e ao Request
 
@@ -75,17 +90,26 @@ public class ResourceAgent extends Agent {
         protected ACLMessage handleRequest(ACLMessage request) throws NotUnderstoodException, RefuseException {
             System.out.println(myAgent.getLocalName() + ": Processing REQUEST message");
             ACLMessage msg = request.createReply();
-            msg.setPerformative(ACLMessage.AGREE);
+                msg.setPerformative(ACLMessage.AGREE);
             return msg;
         }
 
         @Override
         protected ACLMessage prepareResultNotification(ACLMessage request, ACLMessage response) throws FailureException {
-            System.out.println(myAgent.getLocalName() + ": Preparing result of REQUEST");
-            block(5000);
-            ACLMessage msg = request.createReply();
-            msg.setPerformative(ACLMessage.INFORM);
-            return msg;
+            ACLMessage execMsg = request.createReply();
+            execMsg.setPerformative(ACLMessage.INFORM);
+            if(response.getPerformative()==ACLMessage.AGREE){
+                System.out.println(myAgent.getLocalName() + ": Preparing result of REQUEST");
+                String skill=request.getContent();
+                if(skill!=null){
+                    myLib.executeSkill(skill);
+                    execMsg.setContent("successful");
+                }else
+                    execMsg.setContent("unsuccessful");
+                occupied=false;
+                return execMsg;
+            }
+            return execMsg;
         }
     }
 
@@ -98,19 +122,24 @@ public class ResourceAgent extends Agent {
         @Override
         protected ACLMessage handleCfp(ACLMessage cfp) throws RefuseException, FailureException, NotUnderstoodException {
             System.out.println(myAgent.getLocalName() + ": Processing CFP message");
-            ACLMessage msg = cfp.createReply();
-            msg.setPerformative(ACLMessage.PROPOSE);
-            msg.setContent("My Proposal value");
-            return msg;
+            ACLMessage msgCFP = cfp.createReply();
+            if (!occupied) {
+                msgCFP.setPerformative(ACLMessage.PROPOSE);
+                msgCFP.setContent(location);
+            }else
+                msgCFP.setPerformative(ACLMessage.REFUSE);
+            return msgCFP;
         }
 
         @Override
         protected ACLMessage handleAcceptProposal(ACLMessage cfp, ACLMessage propose, ACLMessage accept) throws FailureException {
             System.out.println(myAgent.getLocalName() + ": Preparing result of CFP");
             block(5000);
-            ACLMessage msg = cfp.createReply();
-            msg.setPerformative(ACLMessage.INFORM);
-            return msg;
+            ACLMessage msgCFP = cfp.createReply();
+            msgCFP.setPerformative(ACLMessage.INFORM);
+            msgCFP.setContent(location);
+            occupied=true;
+            return msgCFP;
         }
     }
 
@@ -118,6 +147,8 @@ public class ResourceAgent extends Agent {
     protected void takeDown() {
         super.takeDown();
     }
+
+
 }
 
 
