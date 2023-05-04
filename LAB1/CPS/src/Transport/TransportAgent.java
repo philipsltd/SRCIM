@@ -89,7 +89,7 @@ public class TransportAgent extends Agent {
             ACLMessage msgRE = request.createReply();
 
             if(!occupied) {
-                //occupied=true;  ISTO FAZ SENTIDO ESTAR AQUI?
+                occupied=true;  //ISTO FAZ SENTIDO ESTAR AQUI?
                 myAgent.addBehaviour(new transportWaker(myAgent, 2000));
                 msgRE.setPerformative(ACLMessage.AGREE);
             } else {
@@ -120,7 +120,7 @@ public class TransportAgent extends Agent {
                 occupied = false;
             }
 
-            block(5000);
+            //block(5000);
             return msgRE;
         }
     }

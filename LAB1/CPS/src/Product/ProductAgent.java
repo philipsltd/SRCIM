@@ -213,6 +213,8 @@ public class ProductAgent extends Agent {
             System.out.println(myAgent.getLocalName() + ": INFORM message received");
             actionComplete = true;
 
+            location = inform.getContent();
+
             ACLMessage msgREExecute = new ACLMessage(ACLMessage.REQUEST);
 
             msgREExecute.setContent(nextSkill);
