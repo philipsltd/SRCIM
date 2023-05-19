@@ -90,7 +90,7 @@ public class ResourceAgent extends Agent {
         protected ACLMessage handleRequest(ACLMessage request) throws NotUnderstoodException, RefuseException {
             System.out.println(myAgent.getLocalName() + ": Processing REQUEST message");
             ACLMessage msg = request.createReply();
-                msg.setPerformative(ACLMessage.AGREE);
+            msg.setPerformative(ACLMessage.AGREE);
             return msg;
         }
 

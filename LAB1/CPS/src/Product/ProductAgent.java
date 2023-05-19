@@ -208,10 +208,29 @@ public class ProductAgent extends Agent {
             System.out.println(myAgent.getLocalName() + ": AGREE message received");
         }
 
+        protected void handleRefuse(ACLMessage refuse){
+            System.out.println(myAgent.getLocalName() + ": REFUSE message received");
+
+            ACLMessage msgRETransport = new ACLMessage(ACLMessage.REQUEST);
+            String moveSkill = "sk_move";
+            DFAgentDescription[] dfAgentDescriptions;
+
+            try {
+                dfAgentDescriptions = DFInteraction.SearchInDFByName(moveSkill, myAgent);     // procurar entre todos os agentes qual faz o transporte
+            } catch (FIPAException e) {
+                throw new RuntimeException(e);
+            }
+
+            msgRETransport.addReceiver(dfAgentDescriptions[0].getName());            // como apenas existe um agv, executar o movimento através dele
+            msgRETransport.setContent(location + "," + destination + "," + productID);
+            myAgent.addBehaviour(new initiatorREAgentTransport(myAgent, msgRETransport));
+        }
+
         @Override
         protected void handleInform(ACLMessage inform){   // acabar isto com jeito
             System.out.println(myAgent.getLocalName() + ": INFORM message received");
             actionComplete = true;
+            occupied = false;
 
             location = inform.getContent();
 

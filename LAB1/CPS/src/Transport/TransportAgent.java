@@ -89,8 +89,8 @@ public class TransportAgent extends Agent {
             ACLMessage msgRE = request.createReply();
 
             if(!occupied) {
-                occupied=true;  //ISTO FAZ SENTIDO ESTAR AQUI?
                 myAgent.addBehaviour(new transportWaker(myAgent, 2000));
+                occupied=true;
                 msgRE.setPerformative(ACLMessage.AGREE);
             } else {
                 msgRE.setPerformative(ACLMessage.REFUSE);
