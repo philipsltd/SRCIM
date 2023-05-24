@@ -7,19 +7,16 @@ import pickle
 import sklearn
 from sklearn import tree
 
-
 app = FastAPI()
-#model1 = load(r"LAB2/joblibFiles/model1.joblib")
-#model2 = load(r"LAB2/joblibFiles/model2.joblib")
-#model3 = load(r"LAB2/joblibFiles/model3.joblib")
-#model4 = load(r"LAB2/joblibFiles/model4.joblib")
+model1 = load("joblibFiles/model1.joblib")
+model2 = load("joblibFiles/model2.joblib")
+model3 = load("joblibFiles/model3.joblib")
+model4 = load("joblibFiles/model4.joblib")
 
 class InputData(BaseModel):
     # Define the necessary fields for your input data
     speed: int
     action: int
-
-model1 = pickle.load(open('model1_pickle.pkl', 'rb'))
 
 @app.get("/")
 def read_root():
@@ -29,20 +26,54 @@ def read_root():
 def get_favicon():
     return ""
 
-@app.post("/predict")
-def predict(data: InputData):
+@app.post("/predict1")
+def predict1(data: InputData):
     # Extract the required fields from the input data
     speed = data.speed
     action = data.action
 
     # Perform any necessary preprocessing on the input data
-    data = [[speed, action]]
+    data = np.array([[speed, action]])
 
     # Make the prediction using the loaded model
-    prediction = model1.predict([[50, 2]])  # Adjust based on your model's input format
+    prediction = model1.predict(data)  # Adjust based on your model's input format
 
     # Process and return the prediction result
-    return {"prediction": prediction}
+    return {"prediction": prediction[0]}
+
+@app.post("/predict2")
+def predict2(data: InputData):
+
+    speed = data.speed
+    action = data.action
+
+    data = np.array([[speed, action]])
+    prediction = model2.predict(data)
+
+    return {"prediction": prediction[0]}
+
+@app.post("/predict3")
+def predict3(data: InputData):
+
+    speed = data.speed
+    action = data.action
+
+    data = np.array([[speed, action]])
+    prediction = model3.predict(data)
+
+    return {"prediction": prediction[0]}
+
+@app.post("/predict4")
+def predict4(data: InputData):
+    
+        speed = data.speed
+        action = data.action
+    
+        data = np.array([[speed, action]])
+        prediction = model4.predict(data)
+    
+        return {"prediction": prediction[0]}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port = 8000)
