@@ -16,8 +16,8 @@ model4 = load("joblibFiles/model4.joblib")
 class InputData(BaseModel):
     # Define the necessary fields for your input data
     speed: int
-    action: int
     station: int
+    skill: int
 
 @app.get("/")
 def read_root():
@@ -31,27 +31,28 @@ def get_favicon():
 def predict(data: InputData):
     # Extract the required fields from the input data
     speed = data.speed
-    action = data.action
     station = data.station
+    skill = data.skill
 
     prediction = 0
 
     # Perform any necessary preprocessing on the input data
-    data = np.array([[speed, action]])
+    data = np.array([[speed, skill]])
 
     # Make the prediction using the loaded models
-    if(station == 1){
+    if station == 1:
         prediction = model1.predict(data)  # Adjust based on your model's input format
-    } else if (station == 2){
+    elif station == 2:
         prediction = model2.predict(data)
-    } else if (station == 3){
+    elif station == 3:
         prediction = model3.predict(data)
-    } else if (station == 4){
+    elif station == 4:
         prediction = model4.predict(data)
-    }
-    
+
+    print(prediction[0])
+
     # Process and return the prediction result
     return {"prediction": prediction[0]}
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port = 8000)
+#if __name__ == "__main__":
+#    uvicorn.run(app, host="127.0.0.1", port = 8000)

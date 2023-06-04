@@ -4,7 +4,10 @@ import Utilities.DFInteraction;
 import jade.core.Agent;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import Libraries.IResource;
@@ -37,6 +40,9 @@ public class ResourceAgent extends Agent {
     Float prediction = 0.0F;
     Integer speed = 0;
     Boolean occupied = false;
+    ArrayList<String> stationSpeeds = new ArrayList<>();
+    List<String> speeds = Arrays.asList("65", "75", "100");
+    String randomSpeed;
 
     @Override
     protected void setup() {
@@ -44,6 +50,11 @@ public class ResourceAgent extends Agent {
         Object[] args = this.getArguments();
         this.id = (String) args[0];
         this.description = (String) args[1];
+        stationSpeeds.addAll(speeds);
+
+        Random random = new Random();
+        int randomIndex = random.nextInt(speeds.size());
+        randomSpeed = speeds.get(randomIndex);
 
         //Load hw lib
         try {
@@ -131,32 +142,39 @@ public class ResourceAgent extends Agent {
             System.out.println(myAgent.getLocalName() + ": Processing CFP message");
 
             int station = 0;
+            int skillToExec = 0;
 
-            String msgContent = cfp.getContent();
-            String cleanContent = msgContent.substring(1, msgContent.length() - 1);
-            String[] parts = cleanContent.split(",");
+            speed = Integer.parseInt(randomSpeed);
+            skill = cfp.getContent();
 
-            speed = Integer.parseInt(parts[0].trim());
-            skill = parts[1].trim();
+            if((!skill.equals("sk_pick") && !skill.equals("sk_drop") && !skill.equals("sk_move"))){
 
-            switch (id){
-                case "GS1": station = 1; break;
-                case "GS2": station = 2; break;
-                case "GS3": station = 3; break;
-                case "GS4": station = 4; break;
-            }
+                switch (id){
+                    case "GS1": station = 1; break;
+                    case "GS2": station = 2; break;
+                    case "GS3": station = 3; break;
+                    case "GS4": station = 4; break;
+                }
 
-            prediction = setAPI.returnPrediction(speed, station, skill);
+                switch (skill){
+                    case "sk_g_a": skillToExec = 1; break;
+                    case "sk_g_b": skillToExec = 2; break;
+                    case "sk_g_c": skillToExec = 3; break;
+                }
 
-            String predictionAndLocation = "["+prediction+","+location+"]";
+                prediction = setAPI.returnPrediction(speed, station, skillToExec);
 
-            ACLMessage msgCFP = cfp.createReply();
-            if (!occupied) {
+                ACLMessage msgCFP = cfp.createReply();
                 msgCFP.setPerformative(ACLMessage.PROPOSE);
-                msgCFP.setContent(predictionAndLocation);
-            }else
-                msgCFP.setPerformative(ACLMessage.REFUSE);
-            return msgCFP;
+                msgCFP.setContent(String.valueOf(prediction));
+                return msgCFP;
+            }
+            else{
+                ACLMessage msgCFP = cfp.createReply();
+                msgCFP.setPerformative(ACLMessage.PROPOSE);
+                msgCFP.setContent("0.0");
+                return msgCFP;
+            }
         }
 
         @Override

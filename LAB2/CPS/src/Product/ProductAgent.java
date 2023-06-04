@@ -30,7 +30,7 @@ public class ProductAgent extends Agent {
     String id;
     String location;
     String destination;
-    Integer prediction = 100;
+    Float prediction = 100.0F;
     String productID;
     AID agentToExec;
     String nextSkill;
@@ -39,8 +39,6 @@ public class ProductAgent extends Agent {
     Boolean occupied = false;
     Integer step = 0;
     ArrayList<String> executionPlan = new ArrayList<>();
-    ArrayList<String> stationSpeeds = new ArrayList<>();
-    List<String> speeds = Arrays.asList("35", "50", "65", "75", "100");
     // TO DO: Add remaining attributes required for your implementation
 
     
@@ -51,7 +49,6 @@ public class ProductAgent extends Agent {
         this.id = (String) args[0];
         this.executionPlan = this.getExecutionList((String) args[1]);
         this.location = "Source";
-        stationSpeeds.addAll(speeds);
 
         System.out.println("Product launched: " + this.id + " Requires: " + executionPlan);
 
@@ -64,10 +61,6 @@ public class ProductAgent extends Agent {
         nextSkill = executionPlan.get(step);
         DFAgentDescription[] dfAgentDescriptions;
 
-        Random random = new Random();
-        int randomIndex = random.nextInt(speeds.size());
-        String randomSpeed = speeds.get(randomIndex);
-
         try {
             dfAgentDescriptions = DFInteraction.SearchInDFByName(nextSkill, this);
         } catch (FIPAException e) {
@@ -78,8 +71,7 @@ public class ProductAgent extends Agent {
             msgCFP.addReceiver(dfAgentDescriptions[i].getName());
         }
 
-        String speedAndSkill = "["+randomSpeed+","+nextSkill+"]";
-        msgCFP.setContent(speedAndSkill);
+        msgCFP.setContent(nextSkill);
 
         this.addBehaviour(new initiatorCFPAgent(this, msgCFP));
     }
@@ -96,48 +88,16 @@ public class ProductAgent extends Agent {
             int indexAccepted = 0;
             ACLMessage auxMsg = (ACLMessage)responses.get(0);
             ACLMessage reply;
-            String auxDestination;
-            Boolean chosen = false;
+            float auxPrediction;
             int numberResponses = responses.size();
 
             System.out.println(myAgent.getLocalName() + ": All PROPOSALS received");
-
             responses.removeIf(e -> ((ACLMessage)e).getPerformative()!=ACLMessage.PROPOSE);
-
             System.out.println(myAgent.getLocalName() + ": All PROPOSALS cleared");
 
-            for(int i = 1; i < numberResponses; i++){
-                auxMsg = (ACLMessage)responses.get(i);
-                reply = auxMsg.createReply();
-                String msgContent = auxMsg.getContent();
-                String cleanContent = msgContent.substring(1, msgContent.length() - 1);
-                String[] parts = cleanContent.split(",");
-
-                auxDestination = parts[1].trim();
-
-                if (location.compareTo(auxDestination) == 0){
-                    needTransportation = false;
-                    chosen = true;
-                    destination = auxDestination;
-                    agentToExec = auxMsg.getSender();
-                    reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                    acceptances.add(reply);
-                }
-
-                if(!chosen){
-                    reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
-                    acceptances.add(reply);
-                }
-            }
-
-            System.out.println(myAgent.getLocalName() + ": All PROPOSALS rejected");
-
             for(int i = 0; i < numberResponses; i++){
-                String msgContent = auxMsg.getContent();
-                String cleanContent = msgContent.substring(1, msgContent.length() - 1);
-                String[] parts = cleanContent.split(",");
-
-                int auxPrediction = Integer.parseInt(parts[0].trim());
+                auxMsg = (ACLMessage)responses.get(i);
+                auxPrediction = Float.parseFloat(auxMsg.getContent());
 
                 if(auxPrediction < prediction){
                     prediction = auxPrediction;
@@ -145,20 +105,21 @@ public class ProductAgent extends Agent {
                 }
             }
 
-            if(!chosen) {
-                auxMsg = (ACLMessage)responses.get(indexAccepted);
+            auxMsg = (ACLMessage)responses.get(indexAccepted);
+            agentToExec = auxMsg.getSender();
+            reply = auxMsg.createReply();
+            reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+            acceptances.add(reply);
 
-                chosen = true;
-                agentToExec = auxMsg.getSender();
-                destination = auxMsg.getContent();
-                reply = auxMsg.createReply();
-                reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                acceptances.add(reply);
+            for(int i = 0; i < numberResponses; i++){
+                if(i != indexAccepted){
+                    reply = ((ACLMessage)responses.get(i)).createReply();
+                    reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
+                    acceptances.add(reply);
+                }
             }
 
-            System.out.println(myAgent.getLocalName() + ": 1 PROPOSAL accepted");
-
-            skipNextResponses();
+            System.out.println(myAgent.getLocalName() + ": "+ agentToExec +" PROPOSAL accepted");
         }
 
         @Override
@@ -243,19 +204,12 @@ public class ProductAgent extends Agent {
         @Override
         protected void handleInform(ACLMessage inform){
             System.out.println(myAgent.getLocalName() + ": INFORM message received");
-            //System.out.println(executionPlan.size());
             step++;
             if (step < executionPlan.size()) {
 
                 ACLMessage newCFPMsg = new ACLMessage(ACLMessage.CFP);
-                System.out.println(step);
-                System.out.println(executionPlan.size());
                 nextSkill = executionPlan.get(step);
                 DFAgentDescription[] dfAgentDescriptions;
-
-                Random random = new Random();
-                int randomIndex = random.nextInt(speeds.size());
-                String randomSpeed = speeds.get(randomIndex);
 
                 try {
                     dfAgentDescriptions = DFInteraction.SearchInDFByName(nextSkill, myAgent);
@@ -267,8 +221,7 @@ public class ProductAgent extends Agent {
                     newCFPMsg.addReceiver(dfAgentDescriptions[i].getName());
                 }
 
-                String speedAndSkill = "["+randomSpeed+","+nextSkill+"]";
-                newCFPMsg.setContent(speedAndSkill);
+                newCFPMsg.setContent(nextSkill);
 
                 myAgent.addBehaviour(new initiatorCFPAgent(myAgent, newCFPMsg));  //ADAPTAR PARA O PRÓXIMO SKILL A EXECUTAR
             }else
