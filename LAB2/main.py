@@ -49,8 +49,6 @@ def predict(data: InputData):
     elif station == 4:
         prediction = model4.predict(data)
 
-    print(prediction[0])
-
     # Process and return the prediction result
     return {"prediction": prediction[0]}
 
