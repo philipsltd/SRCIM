@@ -20,10 +20,6 @@ import java.util.List;
 import java.util.Vector;
 import java.util.Random;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-
 /**
  *
  * @author Ricardo Silva Peres <ricardo.peres@uninova.pt>
@@ -34,7 +30,7 @@ public class ProductAgent extends Agent {
     String id;
     String location;
     String destination;
-    Integer prediction;
+    Integer prediction = 100;
     String productID;
     AID agentToExec;
     String nextSkill;
@@ -97,7 +93,8 @@ public class ProductAgent extends Agent {
         @Override
         protected void handleAllResponses(Vector responses, Vector acceptances) {
 
-            ACLMessage auxMsg;
+            int indexAccepted = 0;
+            ACLMessage auxMsg = (ACLMessage)responses.get(0);
             ACLMessage reply;
             String auxDestination;
             Boolean chosen = false;
@@ -116,7 +113,6 @@ public class ProductAgent extends Agent {
                 String cleanContent = msgContent.substring(1, msgContent.length() - 1);
                 String[] parts = cleanContent.split(",");
 
-                int auxPrediction = Integer.parseInt(parts[0].trim());
                 auxDestination = parts[1].trim();
 
                 if (location.compareTo(auxDestination) == 0){
@@ -127,10 +123,6 @@ public class ProductAgent extends Agent {
                     reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                     acceptances.add(reply);
                 }
-                
-                // TODO missing the case where the prediction is the lowest
-
-                
 
                 if(!chosen){
                     reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
@@ -140,12 +132,26 @@ public class ProductAgent extends Agent {
 
             System.out.println(myAgent.getLocalName() + ": All PROPOSALS rejected");
 
-            if (!chosen){
-                needTransportation = true;
-                auxMsg = (ACLMessage) responses.get(0);
-                reply = auxMsg.createReply();
-                destination = auxMsg.getContent();
+            for(int i = 0; i < numberResponses; i++){
+                String msgContent = auxMsg.getContent();
+                String cleanContent = msgContent.substring(1, msgContent.length() - 1);
+                String[] parts = cleanContent.split(",");
+
+                int auxPrediction = Integer.parseInt(parts[0].trim());
+
+                if(auxPrediction < prediction){
+                    prediction = auxPrediction;
+                    indexAccepted = i;
+                }
+            }
+
+            if(!chosen) {
+                auxMsg = (ACLMessage)responses.get(indexAccepted);
+
+                chosen = true;
                 agentToExec = auxMsg.getSender();
+                destination = auxMsg.getContent();
+                reply = auxMsg.createReply();
                 reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                 acceptances.add(reply);
             }
