@@ -126,15 +126,7 @@ public class ProductAgent extends Agent {
                     agentToExec = auxMsg.getSender();
                     reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                     acceptances.add(reply);
-                } else if(auxPrediction < auxPrediction){
-                    needTransportation = true;
-                    chosen = true;
-                    destination = auxDestination;
-                    agentToExec = auxMsg.getSender();
-                    reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                    acceptances.add(reply);
                 }
-
                 
                 // TODO missing the case where the prediction is the lowest
 

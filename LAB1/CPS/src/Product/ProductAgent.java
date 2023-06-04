@@ -33,6 +33,8 @@ public class ProductAgent extends Agent {
     String nextSkill;
     Boolean needTransportation = false;
     Boolean actionComplete = false;
+
+    Boolean occupied = false;
     Integer step = 0;
     ArrayList<String> executionPlan = new ArrayList<>();
     // TO DO: Add remaining attributes required for your implementation

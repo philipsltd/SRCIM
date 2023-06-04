@@ -1,25 +1,50 @@
 package Resource;
 
+import okhttp3.*;
+
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 public class setAPI {
     final OkHttpClient client = new OkHttpClient();
 
-    String run(String url) throws IOException {
+    public static float returnPrediction(int speed, int station, String skill){
+
+        float prediction = 0;
+
+        OkHttpClient client = new OkHttpClient().newBuilder().build();
+        MediaType type = MediaType.parse("application/json");
+
+        String msgContent = "["+speed+","+skill+"]";
+        RequestBody body = RequestBody.create(type, msgContent);
+
         Request request = new Request.Builder()
-                .url(url)
+                .url("http://127.0.0.1:8000/predict" + station)
+                .method("POST", body)
+                .addHeader("Content-Type","application/json")
                 .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            return response.body().string();
+        try {
+            Response response = client.newCall(request).execute();
+            if (response.isSuccessful()) {
+                String responseBody = response.body().string();
+
+                int startIndex = responseBody.indexOf(":") + 1;
+                int endIndex = responseBody.lastIndexOf("}");
+
+                String floatString = responseBody.substring(startIndex, endIndex).trim();
+                prediction = Float.parseFloat(floatString);
+
+                return prediction;
+            }
+
+        }  catch (IOException e) {
+            e.printStackTrace();
         }
+
+        return 0f;
     }
 }
