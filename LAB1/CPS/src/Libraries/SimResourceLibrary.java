@@ -16,6 +16,7 @@ import java.util.logging.Logger;
  *
  * @author Ricardo Silva Peres <ricardo.peres@uninova.pt>
  */
+
 public class SimResourceLibrary implements IResource {
 
     public remoteApi sim;
